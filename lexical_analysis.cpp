@@ -196,3 +196,24 @@ void lexer(const string &source)
         ++p;
     }
 }
+
+void print_symbol_entry(vector<SymbolEntry> symbol_table)
+{
+}
+
+void print_constant_entry(vector<ConstantEntry> constant_table)
+{
+}
+
+void print_token_entry(vector<TokenEntry> token_stream)
+{
+}
+
+void print_error_log(vector<string> error_log)
+{
+}
+
+int main()
+{
+    return 0;
+}
