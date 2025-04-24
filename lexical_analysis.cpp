@@ -3,217 +3,401 @@
 #include <vector>
 #include <string>
 #include <cctype>
-#include <iomanip>
-#include <unordered_map>
 #include <algorithm>
-#include <lexical_analysis.h>
+#include "lexical_analysis.h"
 
 using namespace std;
 
-// 标识符判断 identifier -> letter_ (letter_ | digit)*
+int lineNumber = 1;
 
-bool isLetter_(char c)
+// 关键词
+bool isKeyword(const string &s)
 {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' ? 1 : 0;
+    for (const auto &kw : keywords)
+        if (kw.value == s)
+            return true;
+    return false;
 }
 
-bool isDigit(char c)
-{
-    return c >= '0' && c <= '9' ? 1 : 0;
-}
-
-// 运算符转换到枚举值
-OperatorType get_OpType(string op)
-{
-    // 双字符优先判断
-    if (op == "==")
-        return EQ;
-    if (op == "!=")
-        return NE;
-    if (op == "<=")
-        return LE;
-    if (op == ">=")
-        return GE;
-
-    // 单字符
-    if (op == "+")
-        return PLUS;
-    if (op == "-")
-        return MINUS;
-    if (op == "*")
-        return MUL;
-    if (op == "/")
-        return DIV;
-    if (op == "=")
-        return ASSIGN;
-    if (op == "<")
-        return LT;
-    if (op == ">")
-        return GT;
-
-    return ASSIGN;
-}
-
-// 运算符映射表
-unordered_map<string, int> OPERATOR_MAP =
-    {
-        {"+", PLUS},
-        {"-", MINUS},
-        {"*", MUL},
-        {"/", DIV},
-        {"=", ASSIGN},
-        {"==", EQ},
-        {"!=", NE},
-        {"<", LT},
-        {"<=", LE},
-        {">", GT},
-        {">=", GE},
-        {";", SEMICOLON},
-        {"(", PAREN_L},
-        {")", PAREN_R}};
-
-// 判断是否为运算符
+// 运算符
 int isOperator(const string &op)
 {
-    auto it = OPERATOR_MAP.find(op);
-    return (it != OPERATOR_MAP.end()) ? it->second : -1;
+    for (const auto &o : operators)
+        if (o.value == op)
+            return o.code;
+    return -1;
 }
 
-// 关键字映射表
-unordered_map<string, int> KEYWORD_MAP =
-    {
-        {"if", IF},
-        {"else", ELSE},
-};
-
-// 判断是否为关键字
-int isKeyword(const string &ident)
+// 分隔符
+bool isDelimiter(const string &c)
 {
-    auto it = KEYWORD_MAP.find(ident);
-    return (it != KEYWORD_MAP.end()) ? it->second : -1;
+    for (const auto &d : delimiters)
+    {
+        if (d.value == c)
+            return true;
+    }
+    return false;
 }
 
-void lexer(const string &source)
+// 标识符
+void parseIdentifier(char c, ifstream &fin)
 {
-    // 标记当前扫描字符位置
-    size_t p = 0;
+    string s = "";
+    s += c;
 
-    // 源文件字符串长度
-    size_t size = source.size();
-
-    // 开始扫描
-    while (p < size)
+    // 读取一整个标识符
+    while (isalnum(fin.peek()) || fin.peek() == '_')
+        s += fin.get();
+    
+    // 检查是否有非法字符
+    if (fin.peek() != '#' && !isspace(fin.peek()) && !isDelimiter(string(1, fin.peek())) && 
+        !isOperator(string(1, fin.peek())) && fin.peek() != '\n')
     {
-        // 跳过空白字符
-        if (isspace(source[p]))
+        // 继续读取直到遇到合法字符
+        while (fin.peek() != '#' && !isspace(fin.peek()) && !isDelimiter(string(1, fin.peek())) && 
+               !isOperator(string(1, fin.peek())) && fin.peek() != '\n')
         {
-            p++;
-            continue;
+            s += fin.get();
         }
+        
+        errorLog.push_back(to_string(lineNumber) + ":ERROR:非法标识符 '" + s + "'");
+        tokenStream.push_back({ERROR, s, (int)errorLog.size(), lineNumber});
+        return;
+    }
 
-        // 处理标识符和关键字
-        if (isLetter_(source[p]))
+    // 首字符非字母，报错
+    if (!isalpha(c) && c != '_')
+    {
+        errorLog.push_back(to_string(lineNumber) + ":ERROR:非法标识符起始字符 '" + s + "'");
+        tokenStream.push_back({ERROR, s, (int)errorLog.size(), lineNumber});
+        return;
+    }
+
+    // 是标识符
+    if (isKeyword(s))
+    {
+        int code = 0;
+        for (const auto &kw : keywords)
         {
-            size_t start = p++;
-
-            while (p < size && (isLetter_(source[p] || isDigit(source[p]))))
-                p++;
-
-            string ident = source.substr(start, p - start);
-
-            // 判断关键字
-            int keyword_type = isKeyword(ident);
-            if (keyword_type != -1)
+            if (kw.value == s)
             {
-                token_stream.push_back({KEYWORD, keyword_type, -1});
-            }
-            // 为标识符
-            else
-            {
-                // 添加到符号表
-                auto it = find_if(symbol_table.begin(), symbol_table.end(),
-                                  [&](const SymbolEntry &e)
-                                  { return e.name == ident; });
-                if (it == symbol_table.end())
-                {
-                    symbol_table.push_back({ident});
-                    it = symbol_table.end() - 1;
-                }
-                int index = distance(symbol_table.begin(), it);
-                token_stream.push_back({IDENTIFIER, -1, index});
-            }
-            continue;
-        }
-
-        // 处理数字常量
-        if (isDigit(source[p]) || source[p] == '.')
-        {
-            // 简化的数字解析逻辑（实际需要完整实现）
-            size_t start = p;
-            bool is_float = false;
-            while (p < source.size())
-            {
-                if (isDigit(source[p]))
-                {
-                    ++p;
-                    continue;
-                }
-                if (source[p] == '.' || source[p] == 'e' || source[p] == 'E')
-                {
-                    is_float = true;
-                    ++p;
-                }
-                else
-                    break;
-            }
-
-            // 添加到常量表
-            string value = source.substr(start, p - start);
-            ConstantType type = is_float ? FLOAT : INT; // 简化类型判断
-            constant_table.push_back({value, type});
-            token_stream.push_back({CONSTANT, -1, (int)constant_table.size() - 1});
-            continue;
-        }
-
-        // 处理运算符
-        vector<string> ops = {"==", "!=", "<=", ">=", "+", "-", "*", "/", "=", "<", ">", ";", "(", ")"};
-        bool found = false;
-        for (const auto &op : ops)
-        {
-            if (source.substr(p, op.size()) == op)
-            {
-                token_stream.push_back({OPERATOR, get_OpType(op), -1});
-                p += op.size();
-                found = true;
+                code = kw.code;
                 break;
             }
         }
-        if (found)
-            continue;
+        tokenStream.push_back({KEYWORD, s, code, lineNumber});
+    }
 
-        // 错误处理
-        error_log.push_back("Invalid character: " + std::string(1, source[p]));
-        ++p;
+    // 不是，则加入标识符表
+    else
+    {
+        idTable.push_back(s);
+        tokenStream.push_back({IDENTIFIER, s, (int)idTable.size(), lineNumber});
     }
 }
 
-void print_symbol_entry(vector<SymbolEntry> symbol_table)
+// 常数
+void parseNumber(char c, ifstream &fin)
 {
+    string num = "";
+    num += c;
+    
+    // 处理负数
+    bool isNegative = false;
+    if (c == '-')
+    {
+        isNegative = true;
+        if (!isdigit(fin.peek()))
+        {
+            // 如果不是数字，可能是减法运算符
+            tokenStream.push_back({OPERATOR, "-", 2, lineNumber});
+            return;
+        }
+        num = ""; // 清空，重新开始
+    }
+
+    // 检查是否为0x或0X开头的十六进制
+    if (c == '0' && (fin.peek() == 'x' || fin.peek() == 'X'))
+    {
+        num += fin.get(); // 读取x或X
+        while (isxdigit(fin.peek()))
+            num += fin.get();
+        errorLog.push_back(to_string(lineNumber) + ":ERROR:不支持十六进制常量 '" + num + "'");
+        tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
+        return;
+    }
+
+    bool isFloat = false;
+    bool hasError = false;
+
+    while (isdigit(fin.peek()) || fin.peek() == '.' || isalpha(fin.peek()))
+    {
+        char next = fin.get();
+
+        if (next == '.')
+        {
+            if (isFloat)
+            { // 多个小数点
+                errorLog.push_back(to_string(lineNumber) + ":ERROR:无效浮点数格式");
+                tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
+                return;
+            }
+            isFloat = true;
+        }
+        else if (isalpha(next))
+        {
+            // 数字中包含字母，如12a.34
+            hasError = true;
+            num += next;
+            // 继续读取直到遇到非字母数字字符
+            while (isalnum(fin.peek()) || fin.peek() == '.')
+            {
+                num += fin.get();
+            }
+            break;
+        }
+        num += next;
+    }
+
+    // 浮点数校验
+    if (isFloat && (num.back() == '.' || num.find('.') == string::npos))
+    {
+        errorLog.push_back(to_string(lineNumber) + ":ERROR:无效浮点数格式，缺少小数部分");
+        tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
+    }
+    else if (hasError)
+    {
+        errorLog.push_back(to_string(lineNumber) + ":ERROR:无效数字格式，包含非法字符 '" + num + "'");
+        tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
+    }
+    else
+    {
+        if (isNegative)
+        {
+            num = "-" + num;
+        }
+        constTable.push_back(num);
+        tokenStream.push_back({CONSTANT, num, (int)constTable.size(), lineNumber});
+    }
 }
 
-void print_constant_entry(vector<ConstantEntry> constant_table)
+// 字符串常量
+void parseString(ifstream &fin)
 {
+    string str;
+
+    // 读到后一个引号之前
+    while (fin.peek() != '"' && fin.peek() != '#')
+    {
+        char c = fin.get();
+        if (c == '\n')
+            lineNumber++; // 处理跨行字符串
+        str += c;
+    }
+
+    if (fin.peek() == '#')
+    {
+        errorLog.push_back(to_string(lineNumber) + ":ERROR:未闭合的字符串");
+        tokenStream.push_back({ERROR, str, (int)errorLog.size(), lineNumber});
+    }
+    else
+    {
+        fin.get(); // 闭合引号
+        constTable.push_back(str);
+        tokenStream.push_back({CONSTANT, str, (int)constTable.size(), lineNumber});
+    }
 }
 
-void print_token_entry(vector<TokenEntry> token_stream)
+void parseComment(ifstream &fin, bool isMultiLine)
 {
+    if (!isMultiLine)
+    {
+        // 处理单行注释（直到换行符或EOF）
+        while (fin.peek() != '\n' && !fin.eof())
+        {
+            fin.get(); // 消耗注释内容
+        }
+        if (fin.peek() == '\n')
+        {
+            fin.get(); // 消耗换行符
+            lineNumber++;
+        }
+    }
+    else
+    {
+        // 处理多行注释（直到 */ 或EOF）
+        char prev = 0;
+        while (fin.get(prev))
+        {
+            if (prev == '*' && fin.peek() == '/')
+            {
+                fin.get(); // 消耗 '/'
+                break;
+            }
+            if (prev == '\n')
+            {
+                lineNumber++;
+            }
+        }
+    }
 }
 
-void print_error_log(vector<string> error_log)
+// 主分析函数
+void lexicalAnalysis(const string &filename)
 {
+    ifstream fin(filename);
+    char c;
+
+    while (fin.get(c))
+    {
+        if (c == '#')
+            break;
+
+        if (c == '\n')
+            lineNumber++;
+        if (isspace(c))
+            continue;
+
+        // 标识符或关键字
+        if (isalpha(c) || c == '_')
+        {
+            parseIdentifier(c, fin);
+        }
+        // 数字或负数
+        else if (isdigit(c) || c == '-' || (c == '.' && isdigit(fin.peek())))
+        {
+            parseNumber(c, fin);
+        }
+        // 字符串
+        else if (c == '"')
+        {
+            parseString(fin);
+        }
+        // 注释处理
+        else if (c == '/')
+        {
+            char next = fin.peek();
+            if (next == '/')
+            {
+                fin.get();                // 消耗第二个 '/'
+                parseComment(fin, false); // 处理单行注释
+                continue;                 // 重要！跳过后续处理
+            }
+            else if (next == '*')
+            {
+                fin.get();               // 消耗 '*'
+                parseComment(fin, true); // 处理多行注释
+                continue;                // 重要！跳过后续处理
+            }
+            else
+            {
+                // 处理为除法运算符
+                tokenStream.push_back({OPERATOR, "/", 4, lineNumber});
+            }
+        }
+        // 分隔符处理
+        else if (isDelimiter(string(1, c)))
+        {
+            for (const auto &d : delimiters)
+            {
+                if (d.value == string(1, c))
+                {
+                    tokenStream.push_back({DELIMITER, string(1, c), d.code, lineNumber});
+                    break;
+                }
+            }
+        }
+
+        // 操作符处理
+        else
+        {
+            // 尝试匹配双字符操作符
+            string op(1, c);
+            if (fin.peek() != '#')
+            {
+                char next = fin.peek();
+                int code = isOperator(op + next);
+                if (code != -1)
+                {
+                    op += fin.get();
+                    tokenStream.push_back({OPERATOR, op, code, lineNumber});
+                    continue;
+                }
+            }
+
+            // 单字符操作符或错误
+            int code = isOperator(op);
+            if (code != -1)
+            {
+                tokenStream.push_back({OPERATOR, op, code, lineNumber});
+            }
+            else
+            {
+                // 处理未定义的字符
+                string errorMsg = "未定义的字符: '" + string(1, c) + "'";
+                errorLog.push_back(to_string(lineNumber) + ": " + errorMsg);
+                tokenStream.push_back({ERROR, string(1, c), (int)errorLog.size(), lineNumber});
+            }
+        }
+    }
+
+    fin.close();
+}
+
+// 输出主程序串
+void outputResults()
+{
+    // 输出标识符表
+    ofstream idTableFile("identifier_table.txt");
+    for (size_t i = 0; i < idTable.size(); i++) {
+        idTableFile << i + 1 << ": " << idTable[i] << endl;
+    }
+    idTableFile.close();
+
+    // 输出常数表
+    ofstream constTableFile("constant_table.txt");
+    for (size_t i = 0; i < constTable.size(); i++) {
+        constTableFile << i + 1 << ": " << constTable[i] << endl;
+    }
+    constTableFile.close();
+
+    // 输出单词串
+    ofstream tokenStreamFile("token_stream.txt");
+    for (const auto &t : tokenStream) {
+        switch (t.type) {
+        case KEYWORD:
+            tokenStreamFile << "KEYWORD: " << t.code << " at line: " << t.line << endl;
+            break;
+        case IDENTIFIER:
+            tokenStreamFile << "IDENTIFIER: " << t.code << " at line: " << t.line << endl;
+            break;
+        case CONSTANT:
+            tokenStreamFile << "CONSTANT: " << t.code << " at line: " << t.line << endl;
+            break;
+        case OPERATOR:
+            tokenStreamFile << "OPERATOR: " << t.code << " at line: " << t.line << endl;
+            break;
+        case DELIMITER:
+            tokenStreamFile << "DELIMITER: " << t.code << " at line: " << t.line << endl;
+            break;
+        case ERROR:
+            tokenStreamFile << "ERROR: " << t.code << " at line: " << t.line << endl;
+            break;
+        }
+    }
+    tokenStreamFile.close();
+
+    // 输出错误日志
+    ofstream errorLogFile("error_log.txt");
+    for (const auto &err : errorLog) {
+        errorLogFile << err << endl;
+    }
+    errorLogFile.close();
 }
 
 int main()
 {
+    lexicalAnalysis("source.txt");
+    outputResults();
     return 0;
 }

@@ -1,0 +1,11 @@
+int main() {
+    float a = 3a.14;
+    if (a >= 10) {
+    a -= 1;
+    }
+    // comment
+    /*
+        multi-line comment
+    */
+    string s = "unterminated
+}

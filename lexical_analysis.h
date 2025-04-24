@@ -1,87 +1,96 @@
 #ifndef LEXICAL_ANALYSIS_H
 #define LEXICAL_ANALYSIS_H
 
+#include <vector>
+#include <string>
+
 using namespace std;
 
-// 基础Token类
+// Token类
 enum TokenType
 {
-    KEYWORD,
-    IDENTIFIER,
-    CONSTANT,
-    OPERATOR,
-    DELIMITER
+    KEYWORD = 1, // 1
+    IDENTIFIER,  // 2
+    CONSTANT,    // 3
+    OPERATOR,    // 4
+    DELIMITER,   // 5
+    ERROR        // 6
 };
 
-// 关键字类型
-enum KeywordType
+// 表结构
+struct Symbol
 {
-    IF,
-    ELSE
+    string value;
+    int code; // 在表中的编号
 };
 
-// 常量类型
-enum ConstantType
-{
-    INT,
-    FLOAT,
-    INVALID
-};
-
-// 运算符类型
-enum OperatorType
-{
-    PLUS,   // +
-    MINUS,  // -
-    MUL,    // *
-    DIV,    // /
-    ASSIGN, // =
-    EQ,     // ==
-    NE,     // !=
-    LT,     // <
-    LE,     // <=
-    GT,     // >
-    GE      // >=
-};
-
-// 分隔符类型
-enum DelimiterType
-{
-    SEMICOLON, // ;
-    PAREN_L,   // (
-    PAREN_R    // )
-};
-
+// 词法单元
 struct Token
 {
     TokenType type;
     string value;
+    int code; // 在表中的索引
+    int line; // 行号
 };
 
-// 符号表条目
-struct SymbolEntry
-{
-    std::string name;
-};
+// 符号表
+vector<Symbol> keywords =
+    {
+        {"if", 1},
+        {"else", 2},
+        {"while", 3},
+        {"const", 4},
+        {"return", 5},
+        {"int", 6},
+        {"float", 7},
+        {"main", 8}};
 
-struct ConstantEntry
-{
-    std::string value;
-    ConstantType type;
-};
-struct TokenEntry
-{
-    TokenType main_type;
-    int subtype;     // 用于OPERATOR/KEYWORD子类型
-    int table_index; // 符号表/常量表索引
-};
+vector<Symbol> operators =
+    {
+        {"+", 1},
+        {"-", 2},
+        {"*", 3},
+        {"/", 4},
+        {"=", 5},
+        {"==", 6},
+        {">", 7},
+        {"<", 8},
+        {">=", 9},
+        {"<=", 10},
+        {"!=", 11},
+        {"&&", 12},
+        {"||", 13},
+        {"+=", 14},
+        {"-=", 15},
+        {"*=", 16},
+        {"/=", 17},
+        {"->", 18},
+        {"%", 19},
+        {"++", 20},
+        {"--", 21},
+        {"!", 22},
+        {"&", 23},
+        {"|", 24}};
 
-// 全局词法分析数据
-vector<SymbolEntry> symbol_table;
-vector<ConstantEntry> constant_table;
-vector<TokenEntry> token_stream;
-vector<string> error_log;
+vector<Symbol> delimiters =
+    {
+        {";", 1},
+        {",", 2},
+        {"(", 3},
+        {")", 4},
+        {"{", 5},
+        {"}", 6},
+        {"[", 7},
+        {"]", 8}};
 
-void output_token(Token token);
+// 动态表
+vector<string> idTable;
+vector<string> constTable;
+vector<string> errorLog;
+
+// token表
+vector<Token> tokenStream;
 
 #endif
+
+
