@@ -48,19 +48,19 @@ void parseIdentifier(char c, ifstream &fin)
     // 读取一整个标识符
     while (isalnum(fin.peek()) || fin.peek() == '_')
         s += fin.get();
-    
+
     // 检查是否有非法字符
-    if (fin.peek() != '#' && !isspace(fin.peek()) && !isDelimiter(string(1, fin.peek())) && 
+    if (fin.peek() != '#' && !isspace(fin.peek()) && !isDelimiter(string(1, fin.peek())) &&
         !isOperator(string(1, fin.peek())) && fin.peek() != '\n')
     {
         // 继续读取直到遇到合法字符
-        while (fin.peek() != '#' && !isspace(fin.peek()) && !isDelimiter(string(1, fin.peek())) && 
+        while (fin.peek() != '#' && !isspace(fin.peek()) && !isDelimiter(string(1, fin.peek())) &&
                !isOperator(string(1, fin.peek())) && fin.peek() != '\n')
         {
             s += fin.get();
         }
-        
-        errorLog.push_back(to_string(lineNumber) + ":ERROR:非法标识符 '" + s + "'");
+
+        errorLog.push_back(to_string(lineNumber) + ": ERROR: 非法标识符 '" + s + "'");
         tokenStream.push_back({ERROR, s, (int)errorLog.size(), lineNumber});
         return;
     }
@@ -68,7 +68,7 @@ void parseIdentifier(char c, ifstream &fin)
     // 首字符非字母，报错
     if (!isalpha(c) && c != '_')
     {
-        errorLog.push_back(to_string(lineNumber) + ":ERROR:非法标识符起始字符 '" + s + "'");
+        errorLog.push_back(to_string(lineNumber) + ": ERROR: 非法标识符起始字符 '" + s + "'");
         tokenStream.push_back({ERROR, s, (int)errorLog.size(), lineNumber});
         return;
     }
@@ -101,7 +101,7 @@ void parseNumber(char c, ifstream &fin)
 {
     string num = "";
     num += c;
-    
+
     // 处理负数
     bool isNegative = false;
     if (c == '-')
@@ -122,7 +122,7 @@ void parseNumber(char c, ifstream &fin)
         num += fin.get(); // 读取x或X
         while (isxdigit(fin.peek()))
             num += fin.get();
-        errorLog.push_back(to_string(lineNumber) + ":ERROR:不支持十六进制常量 '" + num + "'");
+        errorLog.push_back(to_string(lineNumber) + ": ERROR: 不支持十六进制常量 '" + num + "'");
         tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
         return;
     }
@@ -138,7 +138,7 @@ void parseNumber(char c, ifstream &fin)
         {
             if (isFloat)
             { // 多个小数点
-                errorLog.push_back(to_string(lineNumber) + ":ERROR:无效浮点数格式");
+                errorLog.push_back(to_string(lineNumber) + ": ERROR: 无效浮点数格式");
                 tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
                 return;
             }
@@ -146,10 +146,10 @@ void parseNumber(char c, ifstream &fin)
         }
         else if (isalpha(next))
         {
-            // 数字中包含字母，如12a.34
+            // 数字中包含字母等其他字符
             hasError = true;
             num += next;
-            // 继续读取直到遇到非字母数字字符
+
             while (isalnum(fin.peek()) || fin.peek() == '.')
             {
                 num += fin.get();
@@ -162,12 +162,12 @@ void parseNumber(char c, ifstream &fin)
     // 浮点数校验
     if (isFloat && (num.back() == '.' || num.find('.') == string::npos))
     {
-        errorLog.push_back(to_string(lineNumber) + ":ERROR:无效浮点数格式，缺少小数部分");
+        errorLog.push_back(to_string(lineNumber) + ": ERROR: 无效浮点数，缺少小数部分");
         tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
     }
     else if (hasError)
     {
-        errorLog.push_back(to_string(lineNumber) + ":ERROR:无效数字格式，包含非法字符 '" + num + "'");
+        errorLog.push_back(to_string(lineNumber) + ": ERROR: 无效数字，包含非法字符 '" + num + "'");
         tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
     }
     else
@@ -212,7 +212,7 @@ void parseComment(ifstream &fin, bool isMultiLine)
 {
     if (!isMultiLine)
     {
-        // 处理单行注释（直到换行符或EOF）
+        // 处理单行注释
         while (fin.peek() != '\n' && !fin.eof())
         {
             fin.get(); // 消耗注释内容
@@ -225,7 +225,7 @@ void parseComment(ifstream &fin, bool isMultiLine)
     }
     else
     {
-        // 处理多行注释（直到 */ 或EOF）
+        // 处理多行注释
         char prev = 0;
         while (fin.get(prev))
         {
@@ -279,15 +279,15 @@ void lexicalAnalysis(const string &filename)
             char next = fin.peek();
             if (next == '/')
             {
-                fin.get();                // 消耗第二个 '/'
+                fin.get();                // 消耗第二个 /
                 parseComment(fin, false); // 处理单行注释
-                continue;                 // 重要！跳过后续处理
+                continue;
             }
             else if (next == '*')
             {
-                fin.get();               // 消耗 '*'
+                fin.get();               // 消耗 *
                 parseComment(fin, true); // 处理多行注释
-                continue;                // 重要！跳过后续处理
+                continue;
             }
             else
             {
@@ -311,7 +311,7 @@ void lexicalAnalysis(const string &filename)
         // 操作符处理
         else
         {
-            // 尝试匹配双字符操作符
+            // 匹配双字符操作符
             string op(1, c);
             if (fin.peek() != '#')
             {
@@ -349,47 +349,55 @@ void outputResults()
 {
     // 输出标识符表
     ofstream idTableFile("identifier_table.txt");
-    for (size_t i = 0; i < idTable.size(); i++) {
+    for (size_t i = 0; i < idTable.size(); i++)
+    {
         idTableFile << i + 1 << ": " << idTable[i] << endl;
     }
     idTableFile.close();
 
     // 输出常数表
     ofstream constTableFile("constant_table.txt");
-    for (size_t i = 0; i < constTable.size(); i++) {
+    for (size_t i = 0; i < constTable.size(); i++)
+    {
         constTableFile << i + 1 << ": " << constTable[i] << endl;
     }
     constTableFile.close();
 
     // 输出单词串
     ofstream tokenStreamFile("token_stream.txt");
-    for (const auto &t : tokenStream) {
-        switch (t.type) {
+
+    for (const auto &t : tokenStream)
+    {
+        tokenStreamFile << "line " << t.line << ":    ";
+        switch (t.type)
+        {
         case KEYWORD:
-            tokenStreamFile << "KEYWORD: " << t.code << " at line: " << t.line << endl;
+            tokenStreamFile << t.value << "    Keyword -> " << t.code;
             break;
         case IDENTIFIER:
-            tokenStreamFile << "IDENTIFIER: " << t.code << " at line: " << t.line << endl;
+            tokenStreamFile << t.value << "    Identifier -> " << t.code;
             break;
         case CONSTANT:
-            tokenStreamFile << "CONSTANT: " << t.code << " at line: " << t.line << endl;
+            tokenStreamFile << t.value << "    Constant -> " << t.code;
             break;
         case OPERATOR:
-            tokenStreamFile << "OPERATOR: " << t.code << " at line: " << t.line << endl;
+            tokenStreamFile << t.value << "    Operator -> " << t.code;
             break;
         case DELIMITER:
-            tokenStreamFile << "DELIMITER: " << t.code << " at line: " << t.line << endl;
+            tokenStreamFile << t.value << "    Delimiter -> " << t.code;
             break;
         case ERROR:
-            tokenStreamFile << "ERROR: " << t.code << " at line: " << t.line << endl;
+            tokenStreamFile << t.value << "    Error -> " << t.code;
             break;
         }
+        tokenStreamFile << endl;
     }
     tokenStreamFile.close();
 
     // 输出错误日志
     ofstream errorLogFile("error_log.txt");
-    for (const auto &err : errorLog) {
+    for (const auto &err : errorLog)
+    {
         errorLogFile << err << endl;
     }
     errorLogFile.close();
