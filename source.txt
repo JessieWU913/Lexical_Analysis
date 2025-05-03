@@ -1,11 +1,28 @@
 int main() {
-    float a = 3a.14;
-    if (a >= 10) {
-        a -= +1;
+    float aaa = 00.1;
+    float bbb = 1a.1;
+    float ccc = a1.1;
+    float ddd = 12@3;
+    const float PI = 3.14; // 正确常量
+    int _count = -123;      // 负整数
+    if (x >= 10 && y != 20) {
+        x = x + 1;
+        str = "unclosed";
+    } else {
+        x -= 5.67;         // 浮点数
     }
-    // comment
-    /*
-        multi-line comment
-    */
-    string s = "unterminated";
+    int 123var = 45;       // 非法标识符
+    int hex = 0x1F;        // 错误十六进制
+    float num1 = 12.;      // 无效浮点
+    float num2 = 0.34;
+    float num3 = 12.3.4;   // 错误多小数点
+    some!!invalid;         // 非法运算符组合
+    a->b;                  // 箭头运算符
+    /* 多行
+       注释 */
+    // 单行注释
+    var_with_underscore++;
+    int arr[5] = {1, 2};
+    
 }
+#

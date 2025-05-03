@@ -92,5 +92,3 @@ vector<string> errorLog;
 vector<Token> tokenStream;
 
 #endif
-
-

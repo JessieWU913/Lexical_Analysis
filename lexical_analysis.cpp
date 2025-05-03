@@ -53,7 +53,7 @@ void parseIdentifier(char c, ifstream &fin)
     if (fin.peek() != '#' && !isspace(fin.peek()) && !isDelimiter(string(1, fin.peek())) &&
         !isOperator(string(1, fin.peek())) && fin.peek() != '\n')
     {
-        // 继续读取直到遇到合法字符
+        // 继续读取
         while (fin.peek() != '#' && !isspace(fin.peek()) && !isDelimiter(string(1, fin.peek())) &&
                !isOperator(string(1, fin.peek())) && fin.peek() != '\n')
         {
@@ -73,7 +73,7 @@ void parseIdentifier(char c, ifstream &fin)
         return;
     }
 
-    // 是标识符
+    // 是关键字
     if (isKeyword(s))
     {
         int code = 0;
@@ -127,9 +127,28 @@ void parseNumber(char c, ifstream &fin)
         return;
     }
 
+    // 检查是否为以0开头的数字
+    if (c == '0' && isdigit(fin.peek()))
+    {
+        char next = fin.peek();
+        if (next == '.')
+        {
+            // 允许0.xxx格式，继续处理
+            num += fin.get(); // 读取小数点
+        }
+        else
+        {
+            // 不允许00xxx格式
+            errorLog.push_back(to_string(lineNumber) + ": ERROR: 无效数字格式，不允许以0开头的数字");
+            tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
+            return;
+        }
+    }
+
     bool isFloat = false;
     bool hasError = false;
 
+    // 读取数字部分
     while (isdigit(fin.peek()) || fin.peek() == '.' || isalpha(fin.peek()))
     {
         char next = fin.get();
@@ -160,10 +179,27 @@ void parseNumber(char c, ifstream &fin)
     }
 
     // 浮点数校验
-    if (isFloat && (num.back() == '.' || num.find('.') == string::npos))
+    if (isFloat)
     {
-        errorLog.push_back(to_string(lineNumber) + ": ERROR: 无效浮点数，缺少小数部分");
-        tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
+        if (num.back() == '.' || num.find('.') == string::npos)
+        {
+            errorLog.push_back(to_string(lineNumber) + ": ERROR: 无效浮点数，缺少小数部分");
+            tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
+        }
+        else if (num[0] == '0' && num.length() > 1 && num[1] != '.')
+        {
+            errorLog.push_back(to_string(lineNumber) + ": ERROR: 无效浮点数格式");
+            tokenStream.push_back({ERROR, num, (int)errorLog.size(), lineNumber});
+        }
+        else
+        {
+            if (isNegative)
+            {
+                num = "-" + num;
+            }
+            constTable.push_back(num);
+            tokenStream.push_back({CONSTANT, num, (int)constTable.size(), lineNumber});
+        }
     }
     else if (hasError)
     {
